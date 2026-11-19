@@ -3,6 +3,8 @@ from pathlib import Path
 from types import MappingProxyType, UnionType
 from typing import Any, Union, get_args, get_origin, get_type_hints
 
+from PIL import ImageFont
+
 from astrbot.api import AstrBotConfig, logger
 from astrbot.core.star.context import Context
 from astrbot.core.utils.astrbot_path import (
@@ -112,6 +114,38 @@ class PluginConfig(ConfigNode):
         self.template_path = self.plugin_dir / "templates" / "base.typ"
         self.font_dir = self.plugin_dir / "fonts"
         self.prefixes: list[str] = self._get_prefixes()
+
+    @property
+    def font_families(self) -> tuple[str, ...]:
+        """Read Typst font family names from the bundled font files.
+
+        Returns:
+            Unique font family names in deterministic file order.
+
+        Raises:
+            RuntimeError: If the font directory contains no readable fonts.
+        """
+        families = []
+        font_paths = sorted(
+            (
+                path
+                for path in self.font_dir.rglob("*")
+                if path.is_file() and path.suffix.lower() in {".ttf", ".otf", ".ttc"}
+            ),
+            key=lambda path: str(path.relative_to(self.font_dir)).lower(),
+        )
+        for path in font_paths:
+            try:
+                family = ImageFont.truetype(str(path), 12).getname()[0]
+            except OSError as exc:
+                logger.warning(f"[HelpTypst] Failed to read font {path}: {exc}")
+                continue
+            if family and family not in families:
+                families.append(family)
+
+        if not families:
+            raise RuntimeError(f"No readable fonts found in {self.font_dir}")
+        return tuple(families)
 
     def _get_prefixes(self) -> list[str]:
         raw = self.context.get_config().get("wake_prefix", ["/"])

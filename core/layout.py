@@ -94,6 +94,7 @@ class TypstLayout:
             "title": title,
             "mode": mode,
             "prefixes": self.cfg.prefixes,
+            "font_families": self.cfg.font_families,
             "plugin_count": len(plugins),
             "giants": giants,
             "columns": cols_data,
