@@ -7,9 +7,8 @@ from astrbot.core.star.context import Context
 from .analyzer import BaseAnalyzer, CommandAnalyzer, EventAnalyzer, FilterAnalyzer
 from .cache import RenderCache
 from .config import PluginConfig
-from .layout import TypstLayout
-from .models import HelpMode, PluginMetadata
-from .renderer import RenderOutcome, TypstRenderer
+from .models import HelpMode, PluginMetadata, RenderJob
+from .renderer import TypstRenderer
 
 
 class HelpsService:
@@ -17,20 +16,15 @@ class HelpsService:
 
     def __init__(self, config: PluginConfig, context: Context):
         self.cfg = config
-        # 布局
-        self.layout = TypstLayout(self.cfg)
         # 缓存
         self.cache = RenderCache(self.cfg)
         # 渲染器
         self.renderer = TypstRenderer(self.cfg, self.cache)
         # 分析器
-        self.command_analyzer = CommandAnalyzer(context, self.cfg)
-        self.event_analyzer = EventAnalyzer(context, self.cfg)
-        self.filter_analyzer = FilterAnalyzer(context, self.cfg)
         self._analyzers: dict[HelpMode, BaseAnalyzer] = {
-            "command": self.command_analyzer,
-            "event": self.event_analyzer,
-            "filter": self.filter_analyzer,
+            "command": CommandAnalyzer(context, self.cfg),
+            "event": EventAnalyzer(context, self.cfg),
+            "filter": FilterAnalyzer(context, self.cfg),
         }
         self._titles: dict[HelpMode, str] = {
             "command": "AstrBot 指令菜单",
@@ -54,7 +48,7 @@ class HelpsService:
         """
         return self._analyzers[mode].get_plugins(query)
 
-    async def render(self, mode: HelpMode, query: str = "") -> RenderOutcome:
+    async def render(self, mode: HelpMode, query: str = "") -> RenderJob:
         """Analyze current data and render the requested help view.
 
         Args:
@@ -62,18 +56,13 @@ class HelpsService:
             query: Optional search query.
 
         Returns:
-            Rendered image result and an optional error message.
+            Render job containing the request data and rendered image paths.
         """
 
         plugins = await asyncio.to_thread(self.get_plugins, mode, query)
 
-        if not plugins:
-            return None, "empty"
-
         title = f'搜索结果: "{query}"' if query else self._titles[mode]
-        content = self.layout.build_json(plugins, title, mode)
-        return await self.renderer.render(content, mode, query)
-
-    async def close(self) -> None:
-        """Close rendering resources owned by the injected renderer."""
-        await self.renderer.close()
+        job = RenderJob(mode=mode, plugins=plugins, title=title, query=query)
+        if not plugins:
+            return job
+        return await self.renderer.render(job)

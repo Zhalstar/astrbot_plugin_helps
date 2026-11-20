@@ -1,10 +1,23 @@
 // === 🔧 全局配置 ===
 
 // --- 参数传入 ---
-#let data            = json(bytes(sys.inputs.json_string))
+#let json_string     = sys.inputs.at("json_string", default: none)
+#let data            = if json_string == none {
+  (
+    title: "AstrBot 指令菜单",
+    mode: "command",
+    prefixes: ("/",),
+    font_families: ("Microsoft YaHei",),
+    plugin_count: 0,
+    giants: (),
+    columns: ((), (), ()),
+    tools: (),
+  )
+} else {
+  json(bytes(json_string))
+}
 #let user_fonts      = data.font_families
 #let query_regex_str = sys.inputs.at("query_regex", default: none)
-#let generated_time  = sys.inputs.at("timestamp", default: "Unknown Time")
 
 // --- 页面设置 ---
 #let page_fill       = rgb("#f0f2f5")
@@ -474,21 +487,14 @@
   ]
 }
 
-// --- 独立指令区 ---
-#let render_singles_section(singles) = {
-  if singles.len() > 0 {
+// --- 函数工具区 ---
+#let render_tools_section(tools) = {
+  if tools.len() > 0 {
     v(15pt)
-    let sample = singles.at(0).nodes.at(0)
-    let title = "🧩 独立工具指令"
-    let sub = "零散的单指令插件合集"
-    if sample.tag == "tool" or sample.tag == "mcp" {
-       title = "🛠️ 函数工具调用 (Function Tools)"
-       sub = "大模型可调用的本地插件工具与 MCP 服务"
-    }
     align(center)[
-      #text(size: 16pt, weight: "bold", fill: c_text_primary)[#title] \
+      #text(size: 16pt, weight: "bold", fill: c_text_primary)[🛠️ 函数工具调用 (Function Tools)] \
       #v(5pt)
-      #text(size: 10pt, fill: c_desc_text)[#sub]
+      #text(size: 10pt, fill: c_desc_text)[大模型可调用的本地插件工具与 MCP 服务]
     ]
     v(10pt)
     block(
@@ -496,7 +502,7 @@
     )[
       #grid(
         columns: (1fr, 1fr, 1fr), gutter: 12pt,
-        ..singles.map(plugin => {
+        ..tools.map(plugin => {
           let cmd = plugin.nodes.at(0)
            box(
             width: 100%, fill: c_rich_bg, radius: 4pt, inset: 8pt, stroke: 0.5pt + c_box_stroke
@@ -545,7 +551,7 @@
     #text(size: 36pt, weight: "black", fill: c_text_primary)[#data.title] \
     #v(6pt)
     #text(size: 11pt, fill: c_desc_text)[
-      已加载 #data.plugin_count 个插件/监听组  ·  #generated_time
+      已加载 #data.plugin_count 个插件/监听组
     ]
   ]
 ]
@@ -573,8 +579,8 @@
   })
 )
 
-// --- Singles ---
-#render_singles_section(data.singles)
+// --- Function Tools ---
+#render_tools_section(data.tools)
 
 #v(20pt)
 #align(center + bottom)[

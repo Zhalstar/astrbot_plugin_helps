@@ -1,4 +1,5 @@
 from collections.abc import Mapping, MutableMapping
+from functools import cached_property
 from pathlib import Path
 from types import MappingProxyType, UnionType
 from typing import Any, Union, get_args, get_origin, get_type_hints
@@ -91,10 +92,7 @@ class ConfigNode:
 
 
 class RenderingConfig(ConfigNode):
-    timeout_compile: float
-    max_concurrent_tasks: int
     giant_threshold: int
-    split_height: int
     ppi: float
 
 
@@ -108,14 +106,14 @@ class PluginConfig(ConfigNode):
         super().__init__(config)
         self.context = context
         self.plugin_dir = Path(get_astrbot_plugin_path()) / self._plugin_name
-        self.cache_dir = Path(get_astrbot_plugin_data_path()) / self._plugin_name
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.data_dir = Path(get_astrbot_plugin_data_path()) / self._plugin_name
+        self.data_dir.mkdir(parents=True, exist_ok=True)
         self.temp_dir = Path(get_astrbot_temp_path())
         self.template_path = self.plugin_dir / "templates" / "base.typ"
         self.font_dir = self.plugin_dir / "fonts"
         self.prefixes: list[str] = self._get_prefixes()
 
-    @property
+    @cached_property
     def font_families(self) -> tuple[str, ...]:
         """Read Typst font family names from the bundled font files.
 

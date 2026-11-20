@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -107,3 +108,14 @@ class PluginMetadata(BaseModel):
             activated=metadata.activated,
             nodes=[] if nodes is None else nodes,
         )
+
+
+@dataclass(slots=True)
+class RenderJob:
+    """Input and output data for one help render operation."""
+
+    mode: HelpMode
+    plugins: list[PluginMetadata]
+    title: str
+    query: str = ""
+    images: list[str] = field(default_factory=list, init=False)

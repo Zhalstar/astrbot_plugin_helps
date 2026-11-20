@@ -1,4 +1,4 @@
-from astrbot.api import AstrBotConfig
+from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.message_components import Image
 from astrbot.api.star import Context, Star
@@ -16,17 +16,19 @@ class HelpsPlugin(Star):
     async def initialize(self):
         pass
 
-    async def terminate(self):
-        await self.service.close()
-
     async def _handle_request(
         self, event: AstrMessageEvent, mode: HelpMode, query: str = ""
     ):
-        result, error = await self.service.render(mode, query)
-        if result:
-            yield event.chain_result([Image.fromFileSystem(p) for p in result.images])
-        elif error != "empty":
-            yield event.plain_result(error)
+        try:
+            job = await self.service.render(mode, query)
+        except Exception as exc:
+            logger.error(f"[HelpTypst] Render Error: {exc}", exc_info=True)
+            yield event.plain_result(f"渲染过程出错: {exc}")
+            return
+        if job.images:
+            yield event.chain_result(
+                [Image.fromFileSystem(path) for path in job.images]
+            )
 
     @filter.command("helps", alias={"帮助", "菜单"})
     async def show_menu(self, event: AstrMessageEvent, query: str = ""):

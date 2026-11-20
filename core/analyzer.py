@@ -49,25 +49,22 @@ class BaseAnalyzer:
             filtered_plugins = []
 
             for p in structured_plugins:
-                p_copy = p.model_copy(deep=True)
                 # 检查插件(容器)本身是否匹配: 在Command模式下，p是插件；在Event/Filter模式下，p是分类组(如 OnMessage)
                 is_container_match = self._is_match(
-                    p_copy.name, p_copy.display_name, p_copy.desc, q_lower
+                    p.name, p.display_name, p.desc, q_lower
                 )
 
                 if is_container_match:
                     # 容器匹配 -> 保留整个容器及其所有内容
-                    filtered_plugins.append(p_copy)
+                    filtered_plugins.append(p)
                 else:
                     # 容器不匹配 -> 深入内部进行剪枝(过滤 nodes 列表，只保留匹配的子节点)
-                    matched_nodes = self._filter_nodes_recursively(
-                        p_copy.nodes, q_lower
-                    )
+                    matched_nodes = self._filter_nodes_recursively(p.nodes, q_lower)
 
                     if matched_nodes:
                         # 保留有剩余节点的容器
-                        p_copy.nodes = matched_nodes
-                        filtered_plugins.append(p_copy)
+                        p.nodes = matched_nodes
+                        filtered_plugins.append(p)
 
             return filtered_plugins
 
@@ -476,9 +473,11 @@ class EventAnalyzer(BaseAnalyzer):
                     )
                 )
 
-            nodes.sort(key=lambda x: x.name)
             nodes.sort(
-                key=lambda x: x.priority if x.priority is not None else 0, reverse=True
+                key=lambda x: (
+                    -(x.priority if x.priority is not None else 0),
+                    x.name,
+                )
             )
 
             pm = PluginMetadata(
@@ -674,9 +673,11 @@ class FilterAnalyzer(BaseAnalyzer):
                     )
                 )
 
-            children.sort(key=lambda x: x.name)
             children.sort(
-                key=lambda x: x.priority if x.priority is not None else 0, reverse=True
+                key=lambda x: (
+                    -(x.priority if x.priority is not None else 0),
+                    x.name,
+                )
             )
 
             nodes.append(
