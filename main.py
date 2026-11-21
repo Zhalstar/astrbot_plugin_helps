@@ -32,19 +32,19 @@ class HelpsPlugin(Star):
                 [Image.fromFileSystem(path) for path in job.images]
             )
 
-    @filter.command("helps", alias={"帮助", "菜单"})
+    @filter.command("帮助", alias={"helps", "菜单"})
     async def show_menu(self, event: AstrMessageEvent, query: str = ""):
         """显示指令菜单"""
         async for r in self._handle_request(event, "command", query):
             yield r
 
-    @filter.command("events", alias={"事件"})
+    @filter.command("事件", alias={"events"})
     async def show_events(self, event: AstrMessageEvent, query: str = ""):
         """显示事件监听列表"""
         async for r in self._handle_request(event, "event", query):
             yield r
 
-    @filter.command("filters", alias={"过滤器"})
+    @filter.command("过滤器", alias={"filters"})
     async def show_filters(self, event: AstrMessageEvent, query: str = ""):
         """显示过滤器详情"""
         async for r in self._handle_request(event, "filter", query):
