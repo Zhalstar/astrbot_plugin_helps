@@ -5,6 +5,7 @@ from astrbot.api.star import Context, Star
 
 from .core import HelpMode, HelpsService
 from .core.config import PluginConfig
+from .core.models import HELP_MODES
 
 
 class HelpsPlugin(Star):
@@ -31,6 +32,33 @@ class HelpsPlugin(Star):
             yield event.chain_result(
                 [Image.fromFileSystem(path) for path in job.images]
             )
+
+    @filter.llm_tool(name="show_help")
+    async def llm_show_help(
+        self,
+        event: AstrMessageEvent,
+        analyzer: str = "command",
+        query: str = "",
+    ) -> str:
+        """显示 AstrBot 插件帮助菜单或指定分析页面。
+
+        Args:
+            analyzer(string): 分析器类型，可选 command、plugin、tool、hook、filter，默认为 command。
+            query(string): 搜索关键词；使用 plugin 分析器时填写插件名称，默认为空。
+
+        Returns:
+            图片发送结果。
+        """
+        mode = analyzer.strip().lower()
+        if mode not in HELP_MODES:
+            return "不支持的分析器，可选：command、plugin、tool、hook、filter"
+        if mode == "plugin" and not query:
+            return "使用 plugin 分析器时必须提供插件名称"
+        sent = False
+        async for result in self._handle_request(event, mode, query):
+            await event.send(result)
+            sent = True
+        return "帮助图片已发送" if sent else "未找到匹配的帮助内容"
 
     @filter.command("帮助", alias={"helps", "菜单"})
     async def show_menu(self, event: AstrMessageEvent, query: str = ""):
