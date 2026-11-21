@@ -16,14 +16,16 @@ class HelpsPlugin(Star):
     async def initialize(self):
         pass
 
+    async def terminate(self):
+        pass
+
     async def _handle_request(
         self, event: AstrMessageEvent, mode: HelpMode, query: str = ""
     ):
         try:
             job = await self.service.render(mode, query)
         except Exception as exc:
-            logger.error(f"[HelpTypst] Render Error: {exc}", exc_info=True)
-            yield event.plain_result(f"渲染过程出错: {exc}")
+            logger.error(f"Render Error: {exc}", exc_info=True)
             return
         if job.images:
             yield event.chain_result(

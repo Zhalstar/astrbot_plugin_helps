@@ -1,5 +1,3 @@
-"""Business orchestration for help data and image rendering."""
-
 import asyncio
 
 from astrbot.core.star.context import Context
@@ -32,11 +30,7 @@ class HelpsService:
             "filter": "AstrBot 过滤器分析",
         }
 
-    def get_plugins(
-        self,
-        mode: HelpMode,
-        query: str = "",
-    ) -> list[PluginMetadata]:
+    def get_plugins(self, mode: HelpMode, query: str = "") -> list[PluginMetadata]:
         """Return plugin information for a command or API consumer.
 
         Args:

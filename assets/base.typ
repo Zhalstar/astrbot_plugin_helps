@@ -12,6 +12,7 @@
     giants: (),
     columns: ((), (), ()),
     tools: (),
+    logos: (:),
   )
 } else {
   json(bytes(json_string))
@@ -422,16 +423,27 @@
   let name = plugin.name
   let ver = plugin.version
   grid(
-    columns: (1fr, auto), gutter: 10pt,
+    columns: (24pt, 1fr, auto), gutter: 8pt,
+    align(left + top)[
+      #box(
+        width: 24pt,
+        height: 24pt,
+        radius: 4pt,
+        clip: true,
+      )[
+        #image(
+          bytes(data.logos.at(plugin.logo_key)),
+          width: 100%,
+          height: 100%,
+          fit: "contain",
+        )
+      ]
+    ],
     align(left + horizon)[
       #layout(size => {
         let avail_w = size.width
         if display != none and display != "" {
           text(weight: "black", size: 15pt, fill: c_plugin_name)[#hl(display)]
-          linebreak()
-          v(0pt)
-          let safe_id = breakable_id(name)
-          text(weight: "medium", size: 9pt, fill: c_plugin_id)[@#hl(safe_id)]
         } else {
           let safe_name = breakable_id(name)
           let name_content = text(weight: "black", size: 14pt, fill: c_plugin_name)[#hl(safe_name)]

@@ -69,7 +69,7 @@ class BaseAnalyzer:
             return filtered_plugins
 
         except Exception as e:
-            logger.error(f"[HelpTypst] 分析失败: {e}", exc_info=True)
+            logger.error(f"分析失败: {e}", exc_info=True)
             return []
 
     def _is_match(self, name: str, display: str | None, desc: str, query: str) -> bool:
@@ -145,9 +145,7 @@ class CommandAnalyzer(BaseAnalyzer):
         results = []
         all_stars = self.context.get_all_stars()
 
-        logger.info(
-            f"[HelpTypst] 开始分析指令。共扫描到 {len(all_stars)} 个已加载插件。"
-        )
+        logger.info(f"开始分析指令。共扫描到 {len(all_stars)} 个已加载插件。")
 
         for star_meta in all_stars:
             if not star_meta.activated:
@@ -165,7 +163,7 @@ class CommandAnalyzer(BaseAnalyzer):
             # 模块路径
             if not raw_module:
                 logger.debug(
-                    f"[HelpTypst] 插件 {plugin_name} 缺失 module_path，无法关联指令，已跳过。"
+                    f"插件 {plugin_name} 缺失 module_path，无法关联指令，已跳过。"
                 )
                 continue
 
@@ -185,7 +183,7 @@ class CommandAnalyzer(BaseAnalyzer):
             if not handlers:
                 # 防御性跳过 + 提供调试
                 logger.debug(
-                    f"[HelpTypst] 插件 {plugin_name} ({raw_module}) 未注册任何指令 Handler。"
+                    f"插件 {plugin_name} ({raw_module}) 未注册任何指令 Handler。"
                 )
                 continue
 
@@ -196,15 +194,15 @@ class CommandAnalyzer(BaseAnalyzer):
                     plugin.nodes = nodes
                     results.append(plugin)
                 else:
-                    logger.debug(f"[HelpTypst] 插件 {plugin_name} 指令树构建结果为空。")
+                    logger.debug(f"插件 {plugin_name} 指令树构建结果为空。")
             except Exception as e:
-                logger.warning(f"[HelpTypst] 处理插件 {plugin_name} 时发生异常: {e}")
+                logger.warning(f"处理插件 {plugin_name} 时发生异常: {e}")
                 continue
 
         # 排序
         results.sort(key=lambda x: (not x.display_name, x.name))
 
-        logger.info(f"[HelpTypst] 指令分析完成。找到 {len(results)} 个有指令的插件。")
+        logger.info(f"指令分析完成。找到 {len(results)} 个有指令的插件。")
         return results
 
     def _build_plugin_command_tree(
@@ -225,9 +223,7 @@ class CommandAnalyzer(BaseAnalyzer):
                     if node:
                         nodes.append(node)
                 except Exception as e:
-                    logger.warning(
-                        f"[HelpTypst] 解析指令组 {handler.handler_name} 失败: {e}"
-                    )
+                    logger.warning(f"解析指令组 {handler.handler_name} 失败: {e}")
 
         # 2. 独立指令
         for handler in handlers:
@@ -242,9 +238,7 @@ class CommandAnalyzer(BaseAnalyzer):
                     if node:
                         nodes.append(node)
                 except Exception as e:
-                    logger.warning(
-                        f"[HelpTypst] 解析指令 {handler.handler_name} 失败: {e}"
-                    )
+                    logger.warning(f"解析指令 {handler.handler_name} 失败: {e}")
 
         self._sort_nodes(nodes)
         return nodes

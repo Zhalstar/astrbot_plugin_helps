@@ -91,14 +91,9 @@ class ConfigNode:
         self._data.save_config()
 
 
-class RenderingConfig(ConfigNode):
-    giant_threshold: int
-    ppi: float
-
-
 class PluginConfig(ConfigNode):
     ignored_plugins: list[str]
-    rendering: RenderingConfig
+    ppi: float
 
     _plugin_name = "astrbot_plugin_helps"
 
@@ -109,8 +104,10 @@ class PluginConfig(ConfigNode):
         self.data_dir = Path(get_astrbot_plugin_data_path()) / self._plugin_name
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.temp_dir = Path(get_astrbot_temp_path())
-        self.template_path = self.plugin_dir / "templates" / "base.typ"
-        self.font_dir = self.plugin_dir / "fonts"
+        self.assets_dir = self.plugin_dir / "assets"
+        self.template_path = self.assets_dir / "base.typ"
+        self.font_dir = self.assets_dir / "fonts"
+        self.default_logo_path = self.assets_dir / "plugin_icon.png"
         self.prefixes: list[str] = self._get_prefixes()
 
     @cached_property
@@ -136,7 +133,7 @@ class PluginConfig(ConfigNode):
             try:
                 family = ImageFont.truetype(str(path), 12).getname()[0]
             except OSError as exc:
-                logger.warning(f"[HelpTypst] Failed to read font {path}: {exc}")
+                logger.warning(f"Failed to read font {path}: {exc}")
                 continue
             if family and family not in families:
                 families.append(family)

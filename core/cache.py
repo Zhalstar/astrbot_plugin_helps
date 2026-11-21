@@ -3,9 +3,12 @@
 import hashlib
 import shutil
 import uuid
+from collections.abc import Iterable
 from pathlib import Path
 
 from PIL import Image
+
+from astrbot.api import logger
 
 from .config import PluginConfig
 from .models import HelpMode
@@ -20,15 +23,15 @@ class RenderCache:
         self.cfg = config
         self.data_dir = config.data_dir
 
-    def build_key(self, content: str, ppi: float) -> str:
+    def build_key(self, content: str, logo_paths: Iterable[Path]) -> str:
         """Calculate a cache key for the rendered content and assets.
 
         Args:
-            content: Serialized layout JSON.
-            ppi: Typst rasterization resolution.
+            content: Serialized layout JSON without embedded Logo bytes.
+            logo_paths: Logo files used by the rendered plugin cards.
 
         Returns:
-            A stable BLAKE2s hash for the rendering input.
+            Stable hash for all inputs that affect the rendered image.
         """
         files = {
             self.cfg.template_path.resolve(),
@@ -40,10 +43,11 @@ class RenderCache:
                 for path in self.cfg.font_dir.rglob("*")
                 if path.is_file()
             )
+        files.update(path.resolve() for path in logo_paths)
 
         hasher = hashlib.blake2s()
         hasher.update(content.encode("utf-8"))
-        hasher.update(str(ppi).encode("ascii"))
+        hasher.update(str(self.cfg.ppi).encode("ascii"))
         for path in sorted(files):
             stat = path.stat()
             hasher.update(str(path).encode("utf-8"))
@@ -51,15 +55,7 @@ class RenderCache:
         return hasher.hexdigest()
 
     def get(self, mode: HelpMode, key: str) -> Path | None:
-        """Return a valid cached image when its key matches.
-
-        Args:
-            mode: Help mode associated with the cached image.
-            key: Expected cache key.
-
-        Returns:
-            Cached image path, or ``None`` on a miss.
-        """
+        """Return a valid cached image when its key matches"""
         image_path = self.data_dir / f"{self.PREFIX}{mode}_0000.webp"
         hash_path = self.data_dir / f"{self.PREFIX}{mode}.hash"
         try:
@@ -77,37 +73,21 @@ class RenderCache:
             hash_path.unlink(missing_ok=True)
             return None
 
-    def store(self, mode: HelpMode, key: str, source: Path) -> Path:
-        """Replace the cached image for a help mode.
-
-        Args:
-            mode: Help mode associated with the rendered image.
-            key: Cache key for the rendered image.
-            source: Newly rendered WebP image.
-
-        Returns:
-            Cached image path.
-        """
+    def store(self, mode: HelpMode, key: str, source: Path) -> Path | None:
+        """Replace the cached image for a help mode"""
         image_path = self.data_dir / f"{self.PREFIX}{mode}_0000.webp"
         hash_path = self.data_dir / f"{self.PREFIX}{mode}.hash"
-        hash_path.unlink(missing_ok=True)
         try:
+            hash_path.unlink(missing_ok=True)
             shutil.copyfile(source, image_path)
             hash_path.write_text(key, encoding="ascii")
-        except Exception:
-            image_path.unlink(missing_ok=True)
-            raise
+        except OSError as exc:
+            logger.warning(f"Failed to write help render cache: {exc}")
+            return None
         return image_path
 
     def deliver(self, source: Path) -> str:
-        """Copy an image to a unique temporary path for message sending.
-
-        Args:
-            source: Cached or newly rendered WebP image.
-
-        Returns:
-            Temporary image path.
-        """
+        """Copy an image to a unique temporary path for message sending"""
         target = self.cfg.temp_dir / f"help_typst_delivery_{uuid.uuid4().hex}.webp"
         try:
             shutil.copyfile(source, target)
