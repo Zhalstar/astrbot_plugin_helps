@@ -112,14 +112,7 @@ class PluginConfig(ConfigNode):
 
     @cached_property
     def font_families(self) -> tuple[str, ...]:
-        """Read Typst font family names from the bundled font files.
-
-        Returns:
-            Unique font family names in deterministic file order.
-
-        Raises:
-            RuntimeError: If the font directory contains no readable fonts.
-        """
+        """Read Typst font family names from the bundled font files"""
         families = []
         font_paths = sorted(
             (

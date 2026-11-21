@@ -11,7 +11,6 @@
     plugin_count: 0,
     giants: (),
     columns: ((), (), ()),
-    tools: (),
     logos: (:),
   )
 } else {
@@ -36,7 +35,7 @@
 #let c_group_title   = rgb("#6a1b9a")
 // 子指令/具体项
 #let c_bullet        = rgb("#d81b60")
-#let c_event_icon    = rgb("#ffc72c")
+#let c_hook_icon     = rgb("#ffc72c")
 #let c_leaf_text     = rgb("#37474f")
 // 描述文本
 #let c_desc_text     = rgb("#757575")
@@ -51,7 +50,6 @@
 #let c_muted         = silver
 #let c_card_stroke   = luma(220)
 #let c_divider       = luma(240)
-#let c_section_stroke = luma(200)
 
 // --- 特殊视图 ---
 // 分区大标题
@@ -62,7 +60,6 @@
 #let c_regex_icon    = rgb("#f57c00")
 // 事件与管理标签
 #let c_tag_admin     = rgb("#c62828")
-#let c_tag_event     = rgb("#f57c00")
 #let c_tag_mcp       = rgb("#00695c")
 #let c_tag_id        = rgb("#283593")
 // 胶囊
@@ -84,14 +81,14 @@
 #let filter_icon = text(size: 0.9em, baseline: -1pt)[⌛︎]
 #let plugin_icon = text(size: 0.9em, baseline: -1pt)[🧩] 
 
-#let event_icon  = text(fill: c_event_icon, size: 0.9em, baseline: -1pt)[⚡]
+#let hook_icon   = text(fill: c_hook_icon, size: 0.9em, baseline: -1pt)[⚡]
 #let regex_icon  = text(fill: c_regex_icon, size: 0.9em, baseline: -1pt)[®]
 #let bullet_icon = text(fill: c_bullet, size: 1.2em, baseline: -1.5pt)[•]
 #let sub_arrow   = text(fill: c_group_title, weight: "bold")[↳] 
 
 #let get_node_icon(node) = {
   if node.tag == "admin" { admin_icon } 
-  else if node.tag == "event_listener" { event_icon } 
+  else if node.tag == "event_hook" { hook_icon } 
   else if node.tag == "tool" { tool_icon } 
   else if node.tag == "mcp" { mcp_icon } 
   else if node.tag == "filter_criteria" { filter_icon } 
@@ -221,6 +218,51 @@
   ]
 }
 
+// --- 工具列表 ---
+#let is_tool_node(node) = node.tag == "tool" or node.tag == "mcp"
+
+#let render_tool_row(node) = {
+  block(
+    width: 100%,
+    inset: (x: 4pt, y: 10pt),
+    above: 0pt,
+    below: 0pt,
+  )[
+    #let title = layout(size => {
+      let safe_name = breakable_id(node.name)
+      let content = text(weight: "bold", fill: c_leaf_text)[#hl(safe_name)]
+      adaptive_text(content, size.width)
+    })
+    #if node.desc != "" {
+      grid(
+        columns: (auto, 1fr),
+        column-gutter: 6pt,
+        row-gutter: 8pt,
+        align(top)[#get_node_icon(node)],
+        title,
+        [],
+        text(size: 9pt, fill: c_desc_text)[#hl(node.desc)],
+      )
+    } else {
+      grid(
+        columns: (auto, 1fr),
+        column-gutter: 6pt,
+        align(top)[#get_node_icon(node)],
+        title,
+      )
+    }
+  ]
+}
+
+#let render_tool_list(nodes) = {
+  for (index, node) in nodes.enumerate() {
+    render_tool_row(node)
+    if index < nodes.len() - 1 {
+      line(length: 100%, stroke: 0.5pt + c_divider)
+    }
+  }
+}
+
 // --- 单行模式 ---
 #let render_single_row(node) = {
   if node.tag == "regex_pattern" {
@@ -234,7 +276,9 @@
       ]
     )
     v(0pt)
-  } else if node.tag == "event_listener" or node.tag == "plugin_container" {
+  } else if is_tool_node(node) {
+    render_tool_row(node)
+  } else if node.tag == "event_hook" or node.tag == "plugin_container" {
     grid(
       columns: (auto, 1fr), gutter: 6pt,
       align(top)[#get_node_icon(node)],
@@ -367,7 +411,12 @@
 }
 
 // --- 标准递归 ---
-#let render_node_standard(node, indent_level: 0) = {
+#let render_node_standard(
+  node,
+  indent_level: 0,
+  section_fill: c_group_bg,
+  section_stroke: none,
+) = {
   if node.is_group {
     let content = [
         #grid(
@@ -382,7 +431,11 @@
 
         #v(6pt)
 
-        #let complex = node.children.filter(c => c.is_group or c.desc != "")
+        #let tools = node.children.filter(c => not c.is_group and is_tool_node(c))
+
+        #let complex = node.children.filter(c =>
+             (c.is_group or c.desc != "") and not is_tool_node(c)
+        )
 
         #let simple = node.children.filter(c => 
              not c.is_group 
@@ -394,23 +447,65 @@
              not c.is_group 
              and c.desc == "" 
              and not (c.tag == "normal" or c.tag == "admin")
+             and not is_tool_node(c)
         )
 
-        #for child in complex { render_node_standard(child, indent_level: indent_level + 1) }
-        #for child in specials { render_node_standard(child, indent_level: indent_level + 1) }
+        #for child in complex {
+          render_node_standard(
+            child,
+            indent_level: indent_level + 1,
+            section_fill: section_fill,
+            section_stroke: section_stroke,
+          )
+        }
+        #for child in specials {
+          render_node_standard(
+            child,
+            indent_level: indent_level + 1,
+            section_fill: section_fill,
+            section_stroke: section_stroke,
+          )
+        }
+
+        #if tools.len() > 0 {
+          if (complex.len() + specials.len()) > 0 { v(4pt) }
+          render_tool_list(tools)
+        }
 
         #if simple.len() > 0 {
-           if (complex.len() + specials.len()) > 0 { v(4pt) }
+           if (complex.len() + specials.len() + tools.len()) > 0 { v(4pt) }
            pad(left: 1em)[
              #grid(columns: (1fr, 1fr, 1fr), gutter: 5pt, ..simple.map(c => render_compact_block(c)))
            ]
         }
     ]
     if indent_level == 0 {
-      block(width: 100%, fill: c_group_bg, radius: 6pt, inset: 8pt, below: 6pt, above: 6pt)[#content]
+      block(
+        width: 100%,
+        fill: section_fill,
+        stroke: section_stroke,
+        radius: 6pt,
+        inset: 8pt,
+        below: 6pt,
+        above: 6pt,
+      )[#content]
     } else {
 	  // 子分组样式
-      block(width: 100%, fill: c_surface, inset: (left: 8pt, rest: 6pt), stroke: (left: 3pt + c_group_title), radius: (right: 4pt), below: 4pt, above: 4pt)[#content]
+      let nested_stroke = if node.tag == "event_hook" {
+        0.5pt + c_card_stroke
+      } else {
+        (left: 3pt + c_group_title)
+      }
+      let nested_radius = if node.tag == "event_hook" { 4pt } else { (right: 4pt) }
+	  block(
+        width: 100%,
+        fill: c_surface,
+        inset: (left: 8pt, rest: 6pt),
+        stroke: nested_stroke,
+        radius: nested_radius,
+        below: 4pt,
+        above: 4pt,
+      )[#content]
     }
   } else {
     render_single_row(node)
@@ -473,7 +568,10 @@
          ..plugin.nodes.map(n => render_rich_block(n))
        )
     } else {
-       let complex = plugin.nodes.filter(c => c.is_group or c.desc != "")
+       let tools = plugin.nodes.filter(c => not c.is_group and is_tool_node(c))
+       let complex = plugin.nodes.filter(c =>
+            (c.is_group or c.desc != "") and not is_tool_node(c)
+       )
        let simple = plugin.nodes.filter(c => 
             not c.is_group 
             and c.desc == "" 
@@ -483,13 +581,19 @@
             not c.is_group 
             and c.desc == "" 
             and not (c.tag == "normal" or c.tag == "admin")
+            and not is_tool_node(c)
        )
 
        for node in complex { render_node_standard(node, indent_level: 0) }
        for node in specials { render_node_standard(node, indent_level: 0) }
 
+       if tools.len() > 0 {
+          if (complex.len() + specials.len()) > 0 { v(4pt) }
+          render_tool_list(tools)
+       }
+
        if simple.len() > 0 [
-          #if (complex.len() + specials.len()) > 0 { v(6pt) }
+          #if (complex.len() + specials.len() + tools.len()) > 0 { v(6pt) }
           #grid(
             columns: (1fr, 1fr, 1fr), gutter: 5pt,
             ..simple.map(c => render_compact_block(c))
@@ -499,60 +603,36 @@
   ]
 }
 
-// --- 函数工具区 ---
-#let render_tools_section(tools) = {
-  if tools.len() > 0 {
-    v(15pt)
-    align(center)[
-      #text(size: 16pt, weight: "bold", fill: c_text_primary)[🛠️ 函数工具调用 (Function Tools)] \
-      #v(5pt)
-      #text(size: 10pt, fill: c_desc_text)[大模型可调用的本地插件工具与 MCP 服务]
-    ]
-    v(10pt)
-    block(
-      width: 100%, fill: c_surface, radius: 8pt, inset: 15pt, stroke: 0.5pt + c_section_stroke
-    )[
-      #grid(
-        columns: (1fr, 1fr, 1fr), gutter: 12pt,
-        ..tools.map(plugin => {
-          let cmd = plugin.nodes.at(0)
-           box(
-            width: 100%, fill: c_rich_bg, radius: 4pt, inset: 8pt, stroke: 0.5pt + c_box_stroke
-          )[
-            #grid(
-               columns: (auto, 1fr, auto), gutter: 4pt,
-               get_node_icon(cmd),
-               layout(size => {
-                  let safe_name = breakable_id(cmd.name)
-                  let content = text(weight: "bold", fill: c_leaf_text)[#hl(safe_name)]
-                  adaptive_text(content, size.width)
-               }),
-               version_pill(plugin.version)
-            )
-            #v(0pt)
-            #block[
-              #text(size: 8pt, fill: c_plugin_id)[来自: ]
-              #if plugin.display_name != none and plugin.display_name != "" {
-                 text(size: 8pt, fill: c_plugin_id, weight: "bold")[#hl(plugin.display_name)]
-                 h(3pt)
-                 let safe_id = breakable_id(plugin.name)
-                 text(size: 7.5pt, fill: c_desc_text)[@#hl(safe_id)]
-              } else {
-                 let safe_id = breakable_id(plugin.name)
-                 text(size: 8pt, fill: c_plugin_id)[@#hl(safe_id)]
-              }
-            ]
-            #if cmd.desc != "" {
-               v(2pt)
-               line(length: 100%, stroke: (dash: "dotted", paint: c_section_stroke))
-               v(2pt)
-               text(size: 9pt, fill: c_desc_text)[#hl(cmd.desc)]
-            }
-          ]
-        })
-      )
-    ]
-  }
+// --- 单插件综合分析 ---
+#let plugin_analysis(plugin) = {
+  block(
+    width: 100%,
+    breakable: false,
+    radius: 8pt,
+    inset: 12pt,
+    fill: c_surface,
+    stroke: 0.5pt + c_card_stroke,
+  )[
+    #plugin_header(plugin)
+  ]
+  v(10pt)
+  grid(
+    columns: (1fr, 1fr, 1fr),
+    gutter: 15pt,
+    ..plugin.section_columns.map(column => {
+      align(top)[
+        #stack(
+          spacing: 10pt,
+          ..column.map(section => render_node_standard(
+            section,
+            indent_level: 0,
+            section_fill: c_surface,
+            section_stroke: 0.5pt + c_card_stroke,
+          )),
+        )
+      ]
+    }),
+  )
 }
 
 // === 🏭 组装视图 ===
@@ -563,7 +643,7 @@
     #text(size: 36pt, weight: "black", fill: c_text_primary)[#data.title] \
     #v(6pt)
     #text(size: 11pt, fill: c_desc_text)[
-      已加载 #data.plugin_count 个插件/监听组
+      已加载 #data.plugin_count 个插件/钩子组
     ]
   ]
 ]
@@ -577,7 +657,11 @@
 
 // --- 巨型块 --- 
 #if data.giants.len() > 0 {
-  stack(spacing: 10pt, ..data.giants.map(plugin => plugin_card(plugin, mode: "giant")))
+  if data.mode == "plugin" {
+    stack(spacing: 10pt, ..data.giants.map(plugin_analysis))
+  } else {
+    stack(spacing: 10pt, ..data.giants.map(plugin => plugin_card(plugin, mode: "giant")))
+  }
   v(15pt)
 }
 
@@ -590,9 +674,6 @@
     ]
   })
 )
-
-// --- Function Tools ---
-#render_tools_section(data.tools)
 
 #v(20pt)
 #align(center + bottom)[

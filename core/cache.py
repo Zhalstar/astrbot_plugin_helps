@@ -24,15 +24,7 @@ class RenderCache:
         self.data_dir = config.data_dir
 
     def build_key(self, content: str, logo_paths: Iterable[Path]) -> str:
-        """Calculate a cache key for the rendered content and assets.
-
-        Args:
-            content: Serialized layout JSON without embedded Logo bytes.
-            logo_paths: Logo files used by the rendered plugin cards.
-
-        Returns:
-            Stable hash for all inputs that affect the rendered image.
-        """
+        """Calculate a cache key for the rendered content and assets"""
         files = {
             self.cfg.template_path.resolve(),
             Path(__file__).with_name("renderer.py").resolve(),

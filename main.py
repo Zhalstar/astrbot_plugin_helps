@@ -38,10 +38,22 @@ class HelpsPlugin(Star):
         async for r in self._handle_request(event, "command", query):
             yield r
 
-    @filter.command("事件", alias={"events"})
-    async def show_events(self, event: AstrMessageEvent, query: str = ""):
-        """显示事件监听列表"""
-        async for r in self._handle_request(event, "event", query):
+    @filter.command("插件", alias={"plugin"})
+    async def show_plugin(self, event: AstrMessageEvent, plugin_name: str):
+        """显示插件完整分析"""
+        async for r in self._handle_request(event, "plugin", plugin_name):
+            yield r
+
+    @filter.command("工具", alias={"tools"})
+    async def show_tools(self, event: AstrMessageEvent, query: str = ""):
+        """显示工具列表"""
+        async for r in self._handle_request(event, "tool", query):
+            yield r
+
+    @filter.command("钩子", alias={"hooks", "事件", "监听器", "events"})
+    async def show_hooks(self, event: AstrMessageEvent, query: str = ""):
+        """显示事件钩子列表"""
+        async for r in self._handle_request(event, "hook", query):
             yield r
 
     @filter.command("过滤器", alias={"filters"})

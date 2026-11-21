@@ -6,17 +6,28 @@ from pydantic import BaseModel, ConfigDict, Field
 from astrbot.core.star.star import StarMetadata
 from astrbot.core.star.star_handler import EventType
 
-HelpMode = Literal["command", "event", "filter"]
-HELP_MODES: frozenset[HelpMode] = frozenset({"command", "event", "filter"})
+HelpMode = Literal["command", "filter", "hook", "plugin", "tool"]
+HELP_MODES: frozenset[HelpMode] = frozenset(
+    {"command", "filter", "hook", "plugin", "tool"}
+)
 
 EVENT_TYPE_MAP: dict[EventType, str] = {
     EventType.OnAstrBotLoadedEvent: "系统启动 (Loaded)",
     EventType.OnPlatformLoadedEvent: "平台就绪 (Platform)",
     EventType.AdapterMessageEvent: "消息监听 (Message)",
+    EventType.OnWaitingLLMRequestEvent: "等待 LLM 请求 (Waiting LLM)",
     EventType.OnLLMRequestEvent: "LLM 请求前 (Pre-LLM)",
     EventType.OnLLMResponseEvent: "LLM 响应后 (Post-LLM)",
+    EventType.OnAgentBeginEvent: "Agent 开始 (Agent Begin)",
+    EventType.OnAgentDoneEvent: "Agent 完成 (Agent Done)",
     EventType.OnDecoratingResultEvent: "消息修饰 (Decorate)",
+    EventType.OnCallingFuncToolEvent: "函数工具调用 (Function Tool)",
+    EventType.OnUsingLLMToolEvent: "LLM 工具使用 (Using Tool)",
+    EventType.OnLLMToolRespondEvent: "LLM 工具响应 (Tool Response)",
     EventType.OnAfterMessageSentEvent: "发送回执 (Sent)",
+    EventType.OnPluginErrorEvent: "插件异常 (Plugin Error)",
+    EventType.OnPluginLoadedEvent: "插件加载 (Plugin Loaded)",
+    EventType.OnPluginUnloadedEvent: "插件卸载 (Plugin Unloaded)",
 }
 
 
@@ -24,7 +35,7 @@ class RenderNode(BaseModel):
     """
     通用渲染节点：
     - 在指令模式下：代表 指令组 或 指令
-    - 在事件模式下：代表 事件类型分组 或 具体Handler
+    - 在钩子模式下：代表事件类型分组或具体 Handler
     """
 
     model_config = ConfigDict(
@@ -37,8 +48,8 @@ class RenderNode(BaseModel):
 
     # 样式控制字段
     is_group: bool = Field(default=False, description="是否为容器/分组")
-    tag: str = Field(default="normal", description="标记类型: normal/admin/event")
-    priority: int | None = Field(default=None, description="事件监听优先级")
+    tag: str = Field(default="normal", description="标记类型: normal/admin/hook")
+    priority: int | None = Field(default=None, description="事件钩子优先级")
 
     # 递归定义
     children: list["RenderNode"] = Field(default_factory=list, description="子节点")
@@ -64,6 +75,18 @@ class PluginMetadata(BaseModel):
     activated: bool = Field(default=True, description="是否已启用")
 
     nodes: list[RenderNode] = Field(default_factory=list)
+
+    @property
+    def resolved_name(self) -> str:
+        """Return the best available plugin identifier."""
+        if self.name:
+            return self.name
+        if self.root_dir_name:
+            return self.root_dir_name
+        if self.module_path:
+            parts = self.module_path.split(".")
+            return parts[-2] if len(parts) > 2 and parts[-1] == "main" else parts[-1]
+        return ""
 
     @classmethod
     def from_star(

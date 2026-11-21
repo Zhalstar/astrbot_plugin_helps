@@ -34,17 +34,11 @@ class TypstRenderer:
         """Distribute plugin cards and collect their unique Logo paths."""
         giants = []
         complex_plugins = []
-        tool_plugins = []
         logo_keys: dict[Path, str] = {}
         logo_paths: dict[str, Path] = {}
 
         for plugin in job.plugins:
             nodes = plugin.nodes
-            is_tool = len(nodes) > 0 and nodes[0].tag in ("tool", "mcp")
-            if is_tool:
-                tool_plugins.append(plugin.model_dump())
-                continue
-
             logo_path = Path(plugin.logo_path) if plugin.logo_path else None
             if logo_path is None or not logo_path.is_file():
                 logo_path = self.cfg.default_logo_path
@@ -58,7 +52,25 @@ class TypstRenderer:
             plugin_data["logo_key"] = logo_key
 
             height = self._estimate_height(nodes)
-            if job.mode in ("event", "filter") and height > giant_threshold:
+            if job.mode == "plugin":
+                section_columns = [[] for _ in range(3)]
+                section_heights = [0] * 3
+                sections = sorted(
+                    (
+                        (node.model_dump(), self._estimate_height([node]) + 40)
+                        for node in nodes
+                    ),
+                    key=lambda item: item[1],
+                    reverse=True,
+                )
+                for node_data, section_height in sections:
+                    index = section_heights.index(min(section_heights))
+                    section_columns[index].append(node_data)
+                    section_heights[index] += section_height
+                plugin_data["section_columns"] = section_columns
+                giants.append(plugin_data)
+                continue
+            if job.mode in ("hook", "filter") and height > giant_threshold:
                 giants.append(plugin_data)
                 continue
             complex_plugins.append((plugin, plugin_data))
@@ -86,7 +98,6 @@ class TypstRenderer:
                 "plugin_count": len(job.plugins),
                 "giants": giants,
                 "columns": columns,
-                "tools": tool_plugins,
                 "logos": {},
             },
             logo_paths,
