@@ -8,7 +8,7 @@ _✨ 插件菜单插件 ✨_
 
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-purple?style=flat-square)](https://github.com/Soulter/AstrBot)
 [![Python](https://img.shields.io/badge/Python-3.12+-blue?style=flat-square)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-AGPL--3.0-green?style=flat-square)](./LICENSE)
+[![License](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0.html)
 [![Version](https://img.shields.io/badge/Version-0.1.2-orange?style=flat-square)]()
 
 
